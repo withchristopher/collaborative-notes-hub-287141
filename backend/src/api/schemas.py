@@ -14,6 +14,7 @@ class Pagination(BaseModel):
 class NoteBase(BaseModel):
     title: str = Field(..., min_length=1, max_length=255, description="Note title")
     content: str = Field(..., description="Note content as markdown or rich text")
+    # Accept None on input but normalize to [] on output via model serializer hooks
     tags: Optional[List[str]] = Field(None, description="List of tags for the note")
 
 
@@ -35,6 +36,13 @@ class NoteOut(NoteBase):
     class Config:
         from_attributes = True
 
+    def model_dump(self, *args, **kwargs):  # type: ignore[override]
+        data = super().model_dump(*args, **kwargs)
+        # Normalize tags to [] for response
+        if data.get("tags") is None:
+            data["tags"] = []
+        return data
+
 
 class NoteHistoryOut(BaseModel):
     id: int
@@ -46,6 +54,12 @@ class NoteHistoryOut(BaseModel):
 
     class Config:
         from_attributes = True
+
+    def model_dump(self, *args, **kwargs):  # type: ignore[override]
+        data = super().model_dump(*args, **kwargs)
+        if data.get("tags") is None:
+            data["tags"] = []
+        return data
 
 
 class PagedNotes(BaseModel):

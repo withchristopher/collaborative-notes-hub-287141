@@ -63,7 +63,14 @@ async def list_notes(
         base_q.order_by(Note.updated_at.desc()).offset((page - 1) * page_size).limit(page_size)
     )
     items = items_res.scalars().all()
-    logger.info("list_notes search=%r tags=%r page=%s size=%s -> items=%s total=%s", search, tags, page, page_size, len(items), total)
+    # Normalize tags to [] instead of None for all items
+    for n in items:
+        if getattr(n, "tags", None) is None:
+            n.tags = []
+    logger.info(
+        "list_notes search=%r tags=%r page=%s size=%s -> items=%s total=%s",
+        search, tags, page, page_size, len(items), total
+    )
     return PagedNotes(items=items, total=total, page=page, page_size=page_size)
 
 
@@ -86,7 +93,10 @@ async def create_note(payload: NoteCreate, db: AsyncSession = Depends(get_db_ses
     db.add(hist)
     await db.commit()
     await db.refresh(note)
-    logger.info("create_note created id=%s", note.id)
+    # ensure tags is serialized as [] not null
+    if note.tags is None:
+        note.tags = []
+    logger.info("create_note committed+refreshed id=%s updated_at=%s", note.id, getattr(note, "updated_at", None))
     return note
 
 
@@ -103,6 +113,9 @@ async def get_note(note_id: int, db: AsyncSession = Depends(get_db_session)) -> 
     note = res.scalar_one_or_none()
     if not note:
         raise HTTPException(status_code=404, detail="Note not found")
+    # ensure tags is []
+    if note.tags is None:
+        note.tags = []
     return note
 
 
@@ -137,7 +150,9 @@ async def update_note(note_id: int, payload: NoteUpdate, db: AsyncSession = Depe
     await db.flush()
     await db.commit()
     await db.refresh(note)
-    logger.info("update_note persisted id=%s", note.id)
+    if note.tags is None:
+        note.tags = []
+    logger.info("update_note committed+refreshed id=%s updated_at=%s", note.id, getattr(note, "updated_at", None))
     return note
 
 
