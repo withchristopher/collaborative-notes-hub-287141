@@ -5,11 +5,13 @@ from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import and_, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
+import logging
 
 from .db import get_db_session
 from .models import Note, NoteHistory
 from .schemas import NoteCreate, NoteHistoryOut, NoteOut, NoteUpdate, PagedNotes
 
+logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/notes", tags=["Notes"])
 
 
@@ -61,6 +63,7 @@ async def list_notes(
         base_q.order_by(Note.updated_at.desc()).offset((page - 1) * page_size).limit(page_size)
     )
     items = items_res.scalars().all()
+    logger.info("list_notes search=%r tags=%r page=%s size=%s -> items=%s total=%s", search, tags, page, page_size, len(items), total)
     return PagedNotes(items=items, total=total, page=page, page_size=page_size)
 
 
@@ -74,6 +77,7 @@ async def list_notes(
 )
 async def create_note(payload: NoteCreate, db: AsyncSession = Depends(get_db_session)) -> NoteOut:
     """Create a new note."""
+    logger.info("create_note payload title=%r content_len=%s tags=%r", payload.title, len(payload.content or "") if payload.content is not None else 0, payload.tags)
     note = Note(title=payload.title, content=payload.content, tags=payload.tags or [])
     db.add(note)
     await db.flush()  # Get note.id
@@ -82,6 +86,7 @@ async def create_note(payload: NoteCreate, db: AsyncSession = Depends(get_db_ses
     db.add(hist)
     await db.commit()
     await db.refresh(note)
+    logger.info("create_note created id=%s", note.id)
     return note
 
 
@@ -115,6 +120,9 @@ async def update_note(note_id: int, payload: NoteUpdate, db: AsyncSession = Depe
     if not note:
         raise HTTPException(status_code=404, detail="Note not found")
 
+    logger.info("update_note id=%s patch title?=%s content?=%s tags?=%s",
+                note_id, payload.title is not None, payload.content is not None, payload.tags is not None)
+
     # Save snapshot BEFORE changes
     snapshot = NoteHistory(note_id=note.id, title=note.title, content=note.content, tags=note.tags)
     db.add(snapshot)
@@ -129,6 +137,7 @@ async def update_note(note_id: int, payload: NoteUpdate, db: AsyncSession = Depe
     await db.flush()
     await db.commit()
     await db.refresh(note)
+    logger.info("update_note persisted id=%s", note.id)
     return note
 
 
@@ -151,6 +160,7 @@ async def delete_note(note_id: int, db: AsyncSession = Depends(get_db_session)) 
         raise HTTPException(status_code=404, detail="Note not found")
     await db.delete(note)
     await db.commit()
+    logger.info("delete_note id=%s done", note_id)
     # For 204 No Content, return no body
     return
 
