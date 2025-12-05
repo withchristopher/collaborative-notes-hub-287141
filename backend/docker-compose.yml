@@ -1,0 +1,16 @@
+version: "3.9"
+
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: collaborative-notes-hub-backend:dev
+    container_name: collaborative-notes-hub-backend
+    ports:
+      - "8000:8000"
+    environment:
+      # Placeholder for environment variables; do not hardcode secrets.
+      # Use a .env file when needed.
+      - APP_ENV=development
+    # No references to database/db_visualizer or other container directories.

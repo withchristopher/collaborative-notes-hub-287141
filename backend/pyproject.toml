@@ -1,0 +1,15 @@
+[project]
+name = "collaborative-notes-hub-backend"
+version = "0.1.0"
+description = "Backend service for Collaborative Notes Hub"
+readme = "README.md"
+requires-python = ">=3.10"
+
+dependencies = [
+  "fastapi>=0.110,<1.0",
+  "uvicorn[standard]>=0.24,<1.0",
+]
+
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
