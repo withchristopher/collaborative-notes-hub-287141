@@ -88,7 +88,8 @@ async def create_note(payload: NoteCreate, db: AsyncSession = Depends(get_db_ses
     The request must include title and content. Tags are optional.
     Returns the created entity with content populated.
     """
-    logger.info("create_note payload title=%r content_len=%s tags=%r", payload.title, len(payload.content or "") if payload.content is not None else 0, payload.tags)
+    incoming_len = len(payload.content or "") if payload.content is not None else 0
+    logger.info("create_note incoming title=%r content_len=%s tags=%r", payload.title, incoming_len, payload.tags)
     note = Note(title=payload.title, content=payload.content, tags=payload.tags or [])
     db.add(note)
     await db.flush()  # Get note.id
@@ -100,7 +101,10 @@ async def create_note(payload: NoteCreate, db: AsyncSession = Depends(get_db_ses
     # ensure tags is serialized as [] not null
     if note.tags is None:
         note.tags = []
-    logger.info("create_note committed+refreshed id=%s updated_at=%s", note.id, getattr(note, "updated_at", None))
+    logger.info(
+        "create_note committed id=%s updated_at=%s persisted_content_len=%s",
+        note.id, getattr(note, "updated_at", None), len(note.content or "")
+    )
     return note
 
 
@@ -141,13 +145,20 @@ async def update_note(note_id: int, payload: NoteUpdate, db: AsyncSession = Depe
     if not note:
         raise HTTPException(status_code=404, detail="Note not found")
 
-    logger.info("update_note id=%s patch title?=%s content?=%s tags?=%s",
-                note_id, payload.title is not None, payload.content is not None, payload.tags is not None)
+    logger.info(
+        "update_note id=%s patch title?=%s content?=%s(content_len=%s) tags?=%s",
+        note_id,
+        payload.title is not None,
+        payload.content is not None,
+        (len(payload.content) if isinstance(payload.content, str) else 0),
+        payload.tags is not None,
+    )
 
     # Save snapshot BEFORE changes
     snapshot = NoteHistory(note_id=note.id, title=note.title, content=note.content, tags=note.tags)
     db.add(snapshot)
 
+    before_len = len(note.content or "")
     if payload.title is not None:
         note.title = payload.title
     if payload.content is not None:
@@ -160,7 +171,11 @@ async def update_note(note_id: int, payload: NoteUpdate, db: AsyncSession = Depe
     await db.refresh(note)
     if note.tags is None:
         note.tags = []
-    logger.info("update_note committed+refreshed id=%s updated_at=%s", note.id, getattr(note, "updated_at", None))
+    after_len = len(note.content or "")
+    logger.info(
+        "update_note committed id=%s updated_at=%s content_len_before=%s content_len_after=%s",
+        note.id, getattr(note, "updated_at", None), before_len, after_len
+    )
     return note
 
 
