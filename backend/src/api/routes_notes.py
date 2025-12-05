@@ -132,18 +132,23 @@ async def update_note(note_id: int, payload: NoteUpdate, db: AsyncSession = Depe
 @router.delete(
     "/{note_id}",
     status_code=204,
+    response_model=None,  # Explicitly indicate no response model for 204 No Content
     summary="Delete a note",
     description="Delete the note by ID, removing its history as well.",
 )
 async def delete_note(note_id: int, db: AsyncSession = Depends(get_db_session)) -> None:
-    """Delete a note by ID."""
+    """Delete a note by ID.
+
+    With status_code=204 this endpoint returns no content in the response body.
+    """
     res = await db.execute(select(Note).where(Note.id == note_id))
     note = res.scalar_one_or_none()
     if not note:
         raise HTTPException(status_code=404, detail="Note not found")
     await db.delete(note)
     await db.commit()
-    return None
+    # For 204 No Content, return no body
+    return
 
 
 # PUBLIC_INTERFACE
