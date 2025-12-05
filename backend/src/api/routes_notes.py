@@ -83,7 +83,11 @@ async def list_notes(
     description="Create a new note and return it.",
 )
 async def create_note(payload: NoteCreate, db: AsyncSession = Depends(get_db_session)) -> NoteOut:
-    """Create a new note."""
+    """Create a new note.
+
+    The request must include title and content. Tags are optional.
+    Returns the created entity with content populated.
+    """
     logger.info("create_note payload title=%r content_len=%s tags=%r", payload.title, len(payload.content or "") if payload.content is not None else 0, payload.tags)
     note = Note(title=payload.title, content=payload.content, tags=payload.tags or [])
     db.add(note)
@@ -127,7 +131,11 @@ async def get_note(note_id: int, db: AsyncSession = Depends(get_db_session)) -> 
     description="Update fields of a note and record history before the change.",
 )
 async def update_note(note_id: int, payload: NoteUpdate, db: AsyncSession = Depends(get_db_session)) -> NoteOut:
-    """Update a note and push previous snapshot to history."""
+    """Update a note and push previous snapshot to history.
+
+    Only fields provided in payload are updated. If 'content' is included,
+    the note.content is updated and the response will include the new content.
+    """
     res = await db.execute(select(Note).where(Note.id == note_id))
     note = res.scalar_one_or_none()
     if not note:
