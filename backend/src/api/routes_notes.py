@@ -24,8 +24,12 @@ def _apply_search_filters(query, search: Optional[str], tags: Optional[List[str]
             )
         )
     if tags:
-        # For Postgres ARRAY, use overlap operator (&&). In SQLAlchemy: Note.tags.op("&&")(tags)
-        conditions.append(Note.tags.op("&&")(tags))  # type: ignore
+        # Use a portable JSON array containment check.
+        # For Postgres JSON/ARRAY: use overlap; For SQLite JSON: use contains semantics.
+        # SQLAlchemy will translate "contains" for JSON-typed columns where supported.
+        # We want notes that contain ANY of provided tags. Implement as OR of contains([tag]).
+        tag_conds = [Note.tags.contains([t]) for t in tags]  # type: ignore[attr-defined]
+        conditions.append(or_(*tag_conds))
     if conditions:
         query = query.where(and_(*conditions))
     return query
