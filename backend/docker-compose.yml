@@ -1,16 +1,38 @@
 version: "3.9"
 
 services:
+  # Optional database service definition to provide a healthy dependency target.
+  # Replace image and connection details with your actual database choice (e.g., postgres, mysql, mongo).
+  database:
+    image: postgres:15
+    container_name: collaborative-notes-hub-db
+    restart: unless-stopped
+    environment:
+      # Use a .env file in real environments; do not hardcode secrets.
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-example-password}
+      - POSTGRES_USER=${POSTGRES_USER:-appuser}
+      - POSTGRES_DB=${POSTGRES_DB:-notes}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
   backend:
     build:
       context: .
       dockerfile: Dockerfile
     image: collaborative-notes-hub-backend:dev
     container_name: collaborative-notes-hub-backend
+    depends_on:
+      database:
+        condition: service_healthy
     ports:
       - "8000:8000"
     environment:
       # Placeholder for environment variables; do not hardcode secrets.
       # Use a .env file when needed.
       - APP_ENV=development
+      # Example DB URL (for postgres). Use .env to set this in real usage.
+      # - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@database:5432/${POSTGRES_DB}
     # No references to database/db_visualizer or other container directories.

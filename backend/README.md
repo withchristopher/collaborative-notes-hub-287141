@@ -4,6 +4,7 @@ This backend service is implemented with FastAPI.
 
 Key points:
 - No dependency on database/db_visualizer path. Previous references have been removed.
+- Backend waits for the database using docker-compose service healthchecks (depends_on with condition: service_healthy), not by cd into any database directory.
 - Use docker-compose at the root of each container or the provided Makefile to build and run.
 
 ## Local Development
